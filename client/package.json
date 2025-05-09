@@ -1,0 +1,16 @@
+{
+  "name": "ambient-idle-game",
+  "version": "1.0.0",
+  "description": "An ambient idle game",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "phaser": "^3.88.2"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+} 
