@@ -2,15 +2,19 @@
   "name": "ambient-idle-game",
   "version": "1.0.0",
   "description": "An ambient idle game",
-  "main": "src/index.js",
+  "main": "src/index.ts",
+  "type": "module",
   "scripts": {
     "start": "vite",
-    "build": "vite build"
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "phaser": "^3.88.2"
   },
   "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^20.10.0",
     "vite": "^5.0.0"
   }
 } 

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import BattleScene from './scenes/BattleScene';
 import StartScreen from './scenes/StartScreen';
-const config = {
+
+const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
     width: 800,
     height: 600,
@@ -11,7 +12,7 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 0 }
+            gravity: { y: 0, x: 0 }
         }
     },
     dom: {

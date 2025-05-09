@@ -1,23 +1,36 @@
+import Phaser from 'phaser';
 import { API_URL } from '../config';
+
+interface PlayerData {
+    id: string;
+    name: string;
+    [key: string]: any;
+}
+
+interface BattleSceneData {
+    difficulty: string;
+    playerId: string;
+    finalScore?: number;
+}
 
 export default class StartScreen extends Phaser.Scene {
     constructor() {
         super({ key: 'StartScreen' });
     }
 
-    preload() {
+    preload(): void {
         // Load any assets needed for the start screen
         this.load.html('nameform', '/assets/nameform.html');
     }
 
-    create() {
+    create(): void {
         // Check if we already have player data in localStorage
         const playerData = localStorage.getItem('playerData');
         
         if (playerData) {
             try {
                 // Parse the player data
-                const parsedPlayerData = JSON.parse(playerData);
+                const parsedPlayerData = JSON.parse(playerData) as PlayerData;
                 console.log('Found existing player data:', parsedPlayerData);
                 
                 // If we have a valid player ID, start the game immediately
@@ -55,22 +68,24 @@ export default class StartScreen extends Phaser.Scene {
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
         nameInput.id = 'nameInput';
-        nameInput.style = 'width: 200px; padding: 8px; font-size: 16px; border-radius: 4px; border: none;';
+        nameInput.style.width = '200px';
+        nameInput.style.padding = '8px';
+        nameInput.style.fontSize = '16px';
+        nameInput.style.borderRadius = '4px';
+        nameInput.style.border = 'none';
         nameInput.placeholder = 'Enter your name';
 
         // Create start button
         const startButton = document.createElement('button');
         startButton.textContent = 'Start Game';
-        startButton.style = `
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #2ecc71;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-left: 10px;
-        `;
+        startButton.style.padding = '10px 20px';
+        startButton.style.fontSize = '16px';
+        startButton.style.backgroundColor = '#2ecc71';
+        startButton.style.color = 'white';
+        startButton.style.border = 'none';
+        startButton.style.borderRadius = '4px';
+        startButton.style.cursor = 'pointer';
+        startButton.style.marginLeft = '10px';
 
         // Add elements to the game
         const element = this.add.dom(400, 300, nameInput);
@@ -165,8 +180,9 @@ export default class StartScreen extends Phaser.Scene {
         });
         
         // Check if there's a final score from a previous game
-        if (this.scene.settings.data && this.scene.settings.data.finalScore) {
-            const finalScore = this.scene.settings.data.finalScore;
+        const sceneData = this.scene.settings.data as BattleSceneData;
+        if (sceneData && sceneData.finalScore) {
+            const finalScore = sceneData.finalScore;
             
             // Display final score
             this.add.text(400, 500, `Previous Score: ${finalScore}`, {
