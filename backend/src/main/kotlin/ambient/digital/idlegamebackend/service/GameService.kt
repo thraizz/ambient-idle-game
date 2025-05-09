@@ -21,7 +21,6 @@ class GameService(private val playerService: PlayerService) {
     @Transactional
     @Scheduled(cron="*/1 * * * * *") // Update game state every minute
     fun updateGameState() {
-        println("Updating game state...")
         game.update()
         game.getPlayers().forEach { player -> playerService.savePlayer(player) }
     }

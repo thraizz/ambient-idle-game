@@ -14,20 +14,23 @@ class Player(
     var name: String,
     var gold: Int = 0,
     var clickRate: Double = 1.0,
-    var attackValue: Int = 1,
+    var attackValue: Int = 2,
     var lastLoginTime: Long = Instant.now().epochSecond,
+    var killCount: Int = 0,
     var playTimeSeconds: Long = 0,
-    var currentEnemyHealth: Int = 100,
+    var currentEnemyHealth: Int = 1,
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0
 ) {
-    @Transient
-    private val baseExperienceToLevel = 100
+    
+    val currentEnemyMaxHealth: Int
+        get() = killCount % 5 * 100 + 1
 
-    @Transient
-    private val experienceMultiplier = 1.5
+    val dps: Double
+        get() = attackValue * clickRate
+    
 
     fun click(): Int {
         TODO("Not yet implemented")
@@ -45,19 +48,28 @@ class Player(
     }
 
     fun calculateOfflineProgress(): Int {
-        return 0
+        val secondsSinceLastLogin = Instant.now().epochSecond - lastLoginTime
+
+        if(secondsSinceLastLogin < 1) {
+            return 0
+        }
+
+        val killTimeCurrentEnemy = dps / currentEnemyMaxHealth
+
+        val potentiallyEarnedGold = secondsSinceLastLogin / killTimeCurrentEnemy
+
+        return (potentiallyEarnedGold / 100.0).toInt()
     }
 
     fun update() {
         println("Updating player $name")
 
-        val damage = clickRate * attackValue
-
-        currentEnemyHealth -= damage.toInt()
+        currentEnemyHealth -= dps.toInt()
 
         if(currentEnemyHealth < 0) {
             gold += 10;
-            currentEnemyHealth = 100
+            killCount += 1;
+            currentEnemyHealth = currentEnemyMaxHealth;
         }
     }
 }

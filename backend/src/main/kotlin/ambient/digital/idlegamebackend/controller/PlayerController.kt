@@ -119,6 +119,7 @@ class PlayerController(private val playerService: PlayerService) {
         gold = gold,
         clickRate = clickRate,
         attackValue = attackValue,
-        currentEnemyHealth = currentEnemyHealth
+        currentEnemyHealth = currentEnemyHealth,
+        currentEnemyMaxHealth = currentEnemyMaxHealth
     )
 }
