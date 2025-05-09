@@ -1213,20 +1213,17 @@ export default class BattleScene extends Phaser.Scene {
 
   getEnemyType(): string {
     // If we dont have a enemy configuration, return the default sprite
-    // if (!this.enemyConfig) {
-    //   return "slime-idle";
-    // }
+    if (!this.enemyConfig) {
+      return "slime";
+    }
 
-    // // Else, map the enemy max health to a sprite
-    // const enemyMaxHealth = this.enemyConfig.maxHp;
+    // Else, map the enemy max health to a sprite
+    const enemyMaxHealth = this.enemyConfig.maxHp;
+    if (enemyMaxHealth >= 200) {
+      return "goblin";
+    }
 
-    // console.log("Enemy max health:", enemyMaxHealth);
-
-    // if (enemyMaxHealth >= 200) {
-    //   return "goblin";
-    // }
-
-    return "goblin";
+    return "slime";
   }
 
   getEnemySprite(): string {
