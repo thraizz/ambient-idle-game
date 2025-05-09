@@ -42,13 +42,11 @@ export default class BattleScene extends Phaser.Scene {
         this.difficulty = data.difficulty || 'EASY';
         this.slimeConfig = this.SLIME_TYPES[this.difficulty];
         
-        // Player stats
-        this.playerHP = 100;
-        this.playerMaxHP = 100;
+        // Player stats - removed playerHP and playerMaxHP
         this.playerDamage = 15;
         
         // Battle state
-        this.battleActive = false;
+        this.battleActive = true;
         this.score = 0;
         this.isPaused = false;
         
@@ -60,6 +58,9 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     preload() {
+        // Load island background
+        this.load.image('island', 'assets/characters/island.png');
+        
         // Load slime sprites with correct dimensions (64x64)
         this.load.spritesheet('slime-idle', 'assets/characters/slime-idle-sheet.png', { 
             frameWidth: 64, 
@@ -71,10 +72,17 @@ export default class BattleScene extends Phaser.Scene {
             frameHeight: 64 
         });
         
-        // Load player character - using single images instead of spritesheets
-        this.load.image('senior-codewarrior', 'assets/characters/senior_codewarrior.png');
-        this.load.image('senior-codewarrior-idle', 'assets/characters/senior_codewarrior_idle.png');
-        this.load.image('senior-codewarrior-attack', 'assets/characters/senior_codewarrior_attack.png');
+        // Load hero character spritesheet
+        this.load.spritesheet('hero-sheet', 'assets/characters/hero-sheet.png', {
+            frameWidth: 32,
+            frameHeight: 64
+        });
+
+        // Load hero attack spritesheet
+        this.load.spritesheet('hero-attack', 'assets/characters/hero-attack.png', {
+            frameWidth: 32,
+            frameHeight: 64
+        });
         
         // Load UI elements
         this.load.image('attack-button', 'assets/ui/attack-button.png');
@@ -86,6 +94,21 @@ export default class BattleScene extends Phaser.Scene {
         
         // Create battle area
         this.battleArea = this.add.rectangle(400, 300, 600, 300, 0x3c2820).setOrigin(0.5);
+        
+
+        // Island 1 is behind the player character
+        // Add island sprite behind the characters - positioned to be behind both player and enemy
+        // Position it exactly halfway between player (200,400) and slime (600,200)
+        this.island = this.add.image(400, 310, 'island');
+        this.island.setScale(4); // Scale up the island to fit the scene
+        this.island.setDepth(0); // Set depth to ensure it's behind characters
+        this.island.setPosition(200, 450);
+
+        //  Island 2 is behind the enemy
+        this.island2 = this.add.image(400, 310, 'island');
+        this.island2.setScale(4); // Scale up the island to fit the scene
+        this.island2.setDepth(0); // Set depth to ensure it's behind characters
+        this.island2.setPosition(580, 220);
         
         // Add battle title
         this.add.text(400, 100, 'Idle Battle!', {
@@ -123,23 +146,47 @@ export default class BattleScene extends Phaser.Scene {
     }
     
     createPlayer() {
-        // Create player sprite in the bottom left
-        this.player = this.add.sprite(200, 400, 'senior-codewarrior-idle');
+        // Create player sprite in the bottom left but in front of the island
+        this.player = this.add.sprite(200, 400, 'hero-sheet');
         
         // Scale the player
         this.player.setScale(2);
         
+        // Set depth to ensure it's in front of the island
+        this.player.setDepth(3);
+        
         // Store original position
         this.playerOriginalX = 200;
         this.playerOriginalY = 400;
+        
+        // Create hero animations
+        this.anims.create({
+            key: 'hero-idle',
+            frames: this.anims.generateFrameNumbers('hero-sheet', { start: 0, end: 0 }),
+            frameRate: 5,
+            repeat: -1
+        });
+        
+        this.anims.create({
+            key: 'hero-attack',
+            frames: this.anims.generateFrameNumbers('hero-attack', { start: 0, end: 3 }),
+            frameRate: 10,
+            repeat: 0
+        });
+        
+        // Start with idle animation
+        this.player.play('hero-idle');
     }
     
     createSlime() {
-        // Create slime sprite in the top right
+        // Create slime sprite in the top right but in front of the island
         this.slime = this.add.sprite(600, 200, 'slime-idle');
         
         // Adjust scale - since we're now using the correct dimensions, we can use a smaller scale
         this.slime.setScale(1.5);
+        
+        // Set depth to ensure it's in front of the island
+        this.slime.setDepth(2);
         
         // Set slime tint based on difficulty
         this.slime.setTint(this.slimeConfig.color);
@@ -190,7 +237,7 @@ export default class BattleScene extends Phaser.Scene {
     }
     
     createUI() {
-        // Create health bars
+        // Create health bars - only enemy health bar now
         this.createHealthBars();
         
         // Add stats panel
@@ -201,6 +248,7 @@ export default class BattleScene extends Phaser.Scene {
             fontSize: '32px',
             fontFamily: 'Arial'
         }).setOrigin(0.5).setInteractive();
+        this.pauseButton.setDepth(10);
         
         this.pauseButton.on('pointerdown', () => {
             this.togglePause();
@@ -212,6 +260,7 @@ export default class BattleScene extends Phaser.Scene {
             fontFamily: 'Arial',
             color: '#ffffff'
         });
+        this.scoreText.setDepth(1);
         
         // Add gold counter
         this.goldText = this.add.text(50, 80, `Gold: ${this.gold}`, {
@@ -219,70 +268,82 @@ export default class BattleScene extends Phaser.Scene {
             fontFamily: 'Arial',
             color: '#FFD700'
         });
+        this.goldText.setDepth(10);
     }
     
     createStatsPanel() {
+        const textPanelHeight = 170;
         // Add stats panel in the top left
-        this.add.rectangle(120, 170, 200, 140, 0x000000, 0.7).setOrigin(0.5);
+        const statsPanel = this.add.rectangle(120, textPanelHeight, 200, 140, 0x000000, 0.7).setOrigin(0.5);
+        statsPanel.setDepth(10);
         
         // Player stats title
-        this.add.text(120, 110, 'STATS', {
+        const statsTitle = this.add.text(120, textPanelHeight - 60, 'STATS', {
             fontSize: '20px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(0.5);
+        statsTitle.setDepth(10);
         
         // Attack speed stat
-        this.add.text(40, 140, 'Attack Speed:', {
+        const attackSpeedLabel = this.add.text(40, textPanelHeight - 30, 'Attack Speed:', {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         });
+        attackSpeedLabel.setDepth(10);
         
-        this.attackSpeedText = this.add.text(200, 140, `${this.attackSpeed.toFixed(1)}/s`, {
+        this.attackSpeedText = this.add.text(200, textPanelHeight - 30, `${this.attackSpeed.toFixed(1)}/s`, {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(1, 0);
+        this.attackSpeedText.setDepth(10);
         
         // Damage stat
-        this.add.text(40, 170, 'Damage:', {
+        const damageLabel = this.add.text(40, 170, 'Damage:', {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         });
+        damageLabel.setDepth(10);
         
         this.damageText = this.add.text(200, 170, `${this.playerDamage}`, {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(1, 0);
+        this.damageText.setDepth(10);
         
         // Click damage stat
-        this.add.text(40, 200, 'Click Damage:', {
+        const clickLabel = this.add.text(40, 200, 'Click Damage:', {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         });
+        clickLabel.setDepth(10);
         
         this.clickDamageText = this.add.text(200, 200, `+${this.damagePerClick}`, {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(1, 0);
+        this.clickDamageText.setDepth(10);
         
         // Enemies defeated
-        this.add.text(40, 230, 'Enemies Defeated:', {
+        const enemiesDefeatedLabel = this.add.text(40, 230, 'Enemies Defeated:', {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         });
+        enemiesDefeatedLabel.setDepth(10);
         
         this.enemiesDefeatedText = this.add.text(200, 230, `${this.defeatedEnemies}`, {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(1, 0);
+        this.enemiesDefeatedText.setDepth(10);
     }
     
     createUpgradeShop() {
@@ -425,31 +486,21 @@ export default class BattleScene extends Phaser.Scene {
     }
     
     createHealthBars() {
-        // Slime health bar background (above the slime)
-        this.add.rectangle(600, 140, 200, 20, 0x000000).setOrigin(0.5);
+        // Enemy health bar background
+        this.slimeHealthBg = this.add.rectangle(600, 150, 100, 10, 0x000000).setOrigin(0.5);
+        this.slimeHealthBg.setDepth(10);
         
-        // Slime health bar
-        this.slimeHealthBar = this.add.rectangle(600, 140, 200, 20, 0xff0000).setOrigin(0.5);
+        // Enemy health bar
+        this.slimeHealthBar = this.add.rectangle(600, 150, 100, 10, 0xFF0000).setOrigin(0.5);
+        this.slimeHealthBar.setDepth(10);
         
-        // Slime health text
-        this.slimeHealthText = this.add.text(600, 140, `${this.slimeHP}/${this.slimeMaxHP}`, {
+        // Enemy health text
+        this.slimeHealthText = this.add.text(600, 130, `${this.slimeHP}/${this.slimeMaxHP}`, {
             fontSize: '16px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(0.5);
-        
-        // Player health bar background (above the player)
-        this.add.rectangle(200, 340, 200, 20, 0x000000).setOrigin(0.5);
-        
-        // Player health bar
-        this.playerHealthBar = this.add.rectangle(200, 340, 200, 20, 0x00ff00).setOrigin(0.5);
-        
-        // Player health text
-        this.playerHealthText = this.add.text(200, 340, `${this.playerHP}/${this.playerMaxHP}`, {
-            fontSize: '16px',
-            fontFamily: 'Arial',
-            color: '#ffffff'
-        }).setOrigin(0.5);
+        this.slimeHealthText.setDepth(10);
     }
     
     togglePause() {
@@ -502,8 +553,8 @@ export default class BattleScene extends Phaser.Scene {
         // Set flag to prevent multiple concurrent attacks
         this.attackInProgress = true;
         
-        // Switch to attack texture
-        this.player.setTexture('senior-codewarrior-attack');
+        // Play hero attack animation
+        this.player.play('hero-attack');
         
         // Make player move towards slime slightly
         this.tweens.add({
@@ -513,9 +564,6 @@ export default class BattleScene extends Phaser.Scene {
             yoyo: true,
             ease: 'Power1',
             onComplete: () => {
-                // Switch back to idle texture after attack movement
-                this.player.setTexture('senior-codewarrior-idle');
-                
                 // After player attack animation and movement, play slime hit animation
                 this.slime.play('hit');
                 
@@ -547,10 +595,15 @@ export default class BattleScene extends Phaser.Scene {
                     return;
                 }
                 
-                // Slime turn after a delay
-                this.time.delayedCall(500, () => {
-                    this.slimeTurn();
-                });
+                // Set attack in progress to false since we're done and there's no enemy turn
+                this.attackInProgress = false;
+            }
+        });
+        
+        // Listen for hero animation complete to go back to idle
+        this.player.on('animationcomplete', (animation) => {
+            if (animation.key === 'hero-attack') {
+                this.player.play('hero-idle');
             }
         });
         
@@ -558,47 +611,6 @@ export default class BattleScene extends Phaser.Scene {
         this.slime.on('animationcomplete', (animation) => {
             if (animation.key === 'hit' && this.slimeHP > 0) {
                 this.slime.play('idle');
-            }
-        });
-    }
-    
-    slimeTurn() {
-        if (!this.battleActive) return;
-        
-        // Slime moves towards player
-        this.tweens.add({
-            targets: this.slime,
-            x: this.slime.x - 50,
-            duration: 300,
-            yoyo: true,
-            ease: 'Power1',
-            onComplete: () => {
-                // Calculate slime damage (with some randomness)
-                const damage = this.slimeConfig.damage + Phaser.Math.Between(-2, 2);
-                
-                // Reduce player HP
-                this.playerHP = Math.max(0, this.playerHP - damage);
-                
-                // Update player health bar
-                this.updatePlayerHealthBar();
-                
-                // Visual feedback for player being hit
-                this.cameras.main.shake(200, 0.01);
-                
-                // Briefly flash the player red
-                this.player.setTint(0xff0000);
-                this.time.delayedCall(200, () => {
-                    this.player.clearTint();
-                });
-                
-                // Check if player is defeated
-                if (this.playerHP <= 0) {
-                    this.playerDefeated();
-                    return;
-                }
-                
-                // Reset attack in progress flag
-                this.attackInProgress = false;
             }
         });
     }
@@ -634,7 +646,7 @@ export default class BattleScene extends Phaser.Scene {
     updateSlimeHealthBar() {
         // Update the width of the health bar
         const healthPercent = this.slimeHP / this.slimeMaxHP;
-        this.slimeHealthBar.width = 200 * healthPercent;
+        this.slimeHealthBar.width = 100 * healthPercent;
         
         // Update health text
         this.slimeHealthText.setText(`${this.slimeHP}/${this.slimeMaxHP}`);
@@ -647,24 +659,8 @@ export default class BattleScene extends Phaser.Scene {
         }
     }
     
-    updatePlayerHealthBar() {
-        // Update the width of the health bar
-        const healthPercent = this.playerHP / this.playerMaxHP;
-        this.playerHealthBar.width = 200 * healthPercent;
-        
-        // Update health text
-        this.playerHealthText.setText(`${this.playerHP}/${this.playerMaxHP}`);
-        
-        // Change color based on health remaining
-        if (healthPercent < 0.2) {
-            this.playerHealthBar.fillColor = 0xff0000; // Red
-        } else if (healthPercent < 0.5) {
-            this.playerHealthBar.fillColor = 0xffff00; // Yellow
-        }
-    }
-    
     slimeDefeated() {
-        this.battleActive = false;
+        this.battleActive = false; // Temporarily disable battle while showing victory
         this.defeatedEnemies++;
         
         // Stop slime animations
@@ -711,47 +707,6 @@ export default class BattleScene extends Phaser.Scene {
         this.updateGoldDisplay();
         this.updateStatsDisplay();
         
-        // Add continue button
-        this.time.delayedCall(2000, () => {
-            const continueButton = this.add.text(400, 450, 'CONTINUE', {
-                fontSize: '32px',
-                fontFamily: 'Arial',
-                color: '#ffffff',
-                backgroundColor: '#2ecc71',
-                padding: { x: 20, y: 10 }
-            }).setOrigin(0.5).setInteractive();
-            
-            continueButton.on('pointerdown', () => {
-                // Choose next difficulty or return to menu
-                if (this.difficulty === 'EASY') {
-                    this.scene.restart({ 
-                        difficulty: 'MEDIUM', 
-                        gold: this.gold,
-                        attackSpeed: this.attackSpeed,
-                        damagePerClick: this.damagePerClick,
-                        defeatedEnemies: this.defeatedEnemies
-                    });
-                } else if (this.difficulty === 'MEDIUM') {
-                    this.scene.restart({ 
-                        difficulty: 'HARD', 
-                        gold: this.gold,
-                        attackSpeed: this.attackSpeed,
-                        damagePerClick: this.damagePerClick,
-                        defeatedEnemies: this.defeatedEnemies
-                    });
-                } else {
-                    // Cycle back to easy with increased difficulty (hp multiplier)
-                    this.scene.restart({ 
-                        difficulty: 'EASY', 
-                        gold: this.gold,
-                        attackSpeed: this.attackSpeed,
-                        damagePerClick: this.damagePerClick,
-                        defeatedEnemies: this.defeatedEnemies
-                    });
-                }
-            });
-        });
-        
         // Make slime fade away
         this.tweens.add({
             targets: this.slime,
@@ -759,58 +714,48 @@ export default class BattleScene extends Phaser.Scene {
             duration: 1000,
             ease: 'Power2'
         });
-    }
-    
-    playerDefeated() {
-        this.battleActive = false;
         
-        // Add defeat text
-        const defeatText = this.add.text(400, 300, 'DEFEAT!', {
-            fontSize: '64px',
-            fontFamily: 'Arial',
-            color: '#ff0000',
-            stroke: '#000000',
-            strokeThickness: 6
-        }).setOrigin(0.5).setAlpha(0);
+        // Reset attack in progress flag to prevent attack state lockup
+        this.attackInProgress = false;
         
-        // Fade in defeat text
-        this.tweens.add({
-            targets: defeatText,
-            alpha: 1,
-            duration: 1000,
-            ease: 'Power2'
-        });
-        
-        // Add retry button
-        this.time.delayedCall(2000, () => {
-            const retryButton = this.add.text(400, 400, 'RETRY', {
-                fontSize: '32px',
-                fontFamily: 'Arial',
-                color: '#ffffff',
-                backgroundColor: '#e74c3c',
-                padding: { x: 20, y: 10 }
-            }).setOrigin(0.5).setInteractive();
+        // Automatically continue to the next enemy after a delay
+        this.time.delayedCall(3000, () => {
+            let nextDifficulty;
             
-            retryButton.on('pointerdown', () => {
-                this.scene.restart({ 
-                    difficulty: this.difficulty,
-                    gold: this.gold,
-                    attackSpeed: this.attackSpeed,
-                    damagePerClick: this.damagePerClick,
-                    defeatedEnemies: this.defeatedEnemies
+            // Determine next difficulty
+            if (this.difficulty === 'EASY') {
+                nextDifficulty = 'MEDIUM';
+            } else if (this.difficulty === 'MEDIUM') {
+                nextDifficulty = 'HARD';
+            } else {
+                nextDifficulty = 'EASY'; // Cycle back to easy
+            }
+            
+            // Show next enemy text
+            const nextEnemyText = this.add.text(400, 450, `Next enemy: ${nextDifficulty} Slime`, {
+                fontSize: '28px',
+                fontFamily: 'Arial',
+                color: '#ffffff'
+            }).setOrigin(0.5);
+            
+            // Fade out all text elements
+            this.time.delayedCall(1500, () => {
+                this.tweens.add({
+                    targets: [victoryText, rewardText, nextEnemyText],
+                    alpha: 0,
+                    duration: 500,
+                    ease: 'Power2',
+                    onComplete: () => {
+                        // Restart scene with next difficulty
+                        this.scene.restart({ 
+                            difficulty: nextDifficulty, 
+                            gold: this.gold,
+                            attackSpeed: this.attackSpeed,
+                            damagePerClick: this.damagePerClick,
+                            defeatedEnemies: this.defeatedEnemies
+                        });
+                    }
                 });
-            });
-            
-            const menuButton = this.add.text(400, 470, 'MENU', {
-                fontSize: '32px',
-                fontFamily: 'Arial',
-                color: '#ffffff',
-                backgroundColor: '#3498db',
-                padding: { x: 20, y: 10 }
-            }).setOrigin(0.5).setInteractive();
-            
-            menuButton.on('pointerdown', () => {
-                this.scene.start('StartScreen');
             });
         });
     }

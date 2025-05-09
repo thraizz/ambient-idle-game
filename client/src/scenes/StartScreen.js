@@ -48,17 +48,71 @@ export default class StartScreen extends Phaser.Scene {
 
         // Add elements to the game
         const element = this.add.dom(400, 300, nameInput);
-        const buttonElement = this.add.dom(400, 350, startButton);
+
+        // Create loading text (initially hidden)
+        const loadingText = this.add.text(400, 400, 'Creating player...', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5);
+        loadingText.visible = false;
+
+        // Error text (initially hidden)
+        const errorText = this.add.text(400, 400, '', {
+            fontSize: '18px',
+            fontFamily: 'Arial',
+            color: '#ff0000',
+            align: 'center'
+        }).setOrigin(0.5);
+        errorText.visible = false;
 
         // Handle button click
-        startButton.addEventListener('click', () => {
+        startButton.addEventListener('click', async () => {
             const name = nameInput.value.trim();
             if (name) {
-                // Store the player name
-                localStorage.setItem('playerName', name);
-                // Transition to the battle scene
-                this.scene.start('BattleScene', { difficulty: 'EASY' });
-                console.log('Starting game with name:', name);
+                // Show loading, hide error if visible
+                loadingText.visible = true;
+                errorText.visible = false;
+                
+                try {
+                    // Create player using API
+                    const apiUrl = 'https://52d8-78-35-35-30.ngrok-free.app/api/players';
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: name
+                        })
+                    });
+                    
+                    const playerData = await response.json();
+                    
+                    if (response.ok) {
+                        // Store the player data
+                        localStorage.setItem('playerName', name);
+                        localStorage.setItem('playerData', JSON.stringify(playerData));
+                        
+                        // Transition to the battle scene
+                        this.scene.start('BattleScene', { 
+                            difficulty: 'EASY',
+                            playerId: playerData.id
+                        });
+                        console.log('Starting game with player:', playerData);
+                    } else {
+                        // Show error message
+                        errorText.setText(playerData.message || 'Failed to create player');
+                        errorText.visible = true;
+                        loadingText.visible = false;
+                    }
+                } catch (error) {
+                    console.error('API error:', error);
+                    errorText.setText('Network error, please try again');
+                    errorText.visible = true;
+                    loadingText.visible = false;
+                }
             } else {
                 // Shake the input if no name is entered
                 this.tweens.add({

@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import BattleScene from './scenes/BattleScene';
 import StartScreen from './scenes/StartScreen';
-
 const config = {
     type: Phaser.AUTO,
     width: 800,
@@ -17,6 +16,15 @@ const config = {
     },
     dom: {
         createContainer: true
+    },
+    render: {
+        pixelArt: true,
+        antialias: false,
+        roundPixels: true
+    },
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH
     }
 };
 

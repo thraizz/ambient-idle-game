@@ -1,0 +1,342 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Idle Game API",
+    "description": "API for the Idle Game Backend",
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "v1.0"
+  },
+  "externalDocs": {
+    "description": "Idle Game Documentation",
+    "url": "https://ambient.digital/docs"
+  },
+  "servers": [
+    {
+      "url": "https://52d8-78-35-35-30.ngrok-free.app/",
+      "description": "Default Server URL"
+    }
+  ],
+  "tags": [
+    { "name": "Game", "description": "Game operations API" },
+    { "name": "Player", "description": "Player management API" }
+  ],
+  "paths": {
+    "/api/players": {
+      "get": {
+        "tags": ["Player"],
+        "summary": "Get all players",
+        "description": "Retrieve a list of all players in the game",
+        "operationId": "getAllPlayers",
+        "responses": {
+          "200": {
+            "description": "Players found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/PlayerResponse" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Player"],
+        "summary": "Create a new player",
+        "description": "Create a new player with the specified attributes",
+        "operationId": "createPlayer",
+        "requestBody": {
+          "description": "Player details to create",
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePlayerRequest" }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Invalid request, such as duplicate player name",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PlayerResponse" }
+              }
+            }
+          },
+          "201": {
+            "description": "Player created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PlayerResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/logout/{playerId}": {
+      "post": {
+        "tags": ["Game"],
+        "summary": "Player logout",
+        "description": "Mark player as inactive and save their progress",
+        "operationId": "playerLogout",
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "description": "ID of the player logging out",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Player logged out successfully" }
+        }
+      }
+    },
+    "/api/game/login/{playerId}": {
+      "post": {
+        "tags": ["Game"],
+        "summary": "Player login",
+        "description": "Register player as active and calculate offline progress",
+        "operationId": "playerLogin",
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "description": "ID of the player logging in",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Player logged in successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/click/{playerId}": {
+      "post": {
+        "tags": ["Game"],
+        "summary": "Player click",
+        "description": "Process a player's click action to earn gold",
+        "operationId": "playerClick",
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "description": "ID of the player clicking",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Click processed successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ClickResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/players/{id}": {
+      "get": {
+        "tags": ["Player"],
+        "summary": "Get player by ID",
+        "description": "Retrieve a specific player by their ID",
+        "operationId": "getPlayerById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the player to retrieve",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Player not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PlayerResponse" }
+              }
+            }
+          },
+          "200": {
+            "description": "Player found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PlayerResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/game/active-players": {
+      "get": {
+        "tags": ["Game"],
+        "summary": "Get active player count",
+        "description": "Get the number of players currently active in the game",
+        "operationId": "getActivePlayerCount",
+        "responses": {
+          "200": {
+            "description": "Active player count retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreatePlayerRequest": {
+        "required": ["name"],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Player name",
+            "example": "Warrior"
+          },
+          "gold": {
+            "type": "integer",
+            "description": "Initial gold amount",
+            "format": "int32",
+            "example": 100,
+            "default": 0
+          },
+          "clickRate": {
+            "type": "number",
+            "description": "Initial click rate multiplier",
+            "format": "double",
+            "example": 1.0,
+            "default": 1.0
+          },
+          "attackValue": {
+            "type": "integer",
+            "description": "Initial attack value",
+            "format": "int32",
+            "example": 10,
+            "default": 1
+          }
+        },
+        "description": "Request object for creating a new player"
+      },
+      "PlayerResponse": {
+        "required": [
+          "attackValue",
+          "clickRate",
+          "currentEnemyHealth",
+          "gold",
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Player ID",
+            "format": "int64",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Player name",
+            "example": "Warrior"
+          },
+          "gold": {
+            "type": "integer",
+            "description": "Current gold amount",
+            "format": "int32",
+            "example": 150
+          },
+          "clickRate": {
+            "type": "number",
+            "description": "Current click rate multiplier",
+            "format": "double",
+            "example": 1.2
+          },
+          "attackValue": {
+            "type": "integer",
+            "description": "Current attack value",
+            "format": "int32",
+            "example": 12
+          },
+          "currentEnemyHealth": {
+            "type": "integer",
+            "description": "Current Enemy health",
+            "format": "int32",
+            "example": 100
+          }
+        },
+        "description": "Response object representing a player"
+      },
+      "LoginResponse": {
+        "required": ["message", "offlineGold", "success"],
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether login was successful",
+            "example": true
+          },
+          "offlineGold": {
+            "type": "integer",
+            "description": "Gold earned while offline",
+            "format": "int32",
+            "example": 120
+          },
+          "message": {
+            "type": "string",
+            "description": "Welcome message",
+            "example": "You earned 120 gold while offline!"
+          }
+        },
+        "description": "Response object for player login"
+      },
+      "ClickResponse": {
+        "required": ["goldEarned", "message"],
+        "type": "object",
+        "properties": {
+          "goldEarned": {
+            "type": "integer",
+            "description": "Gold earned from the click",
+            "format": "int32",
+            "example": 5
+          },
+          "message": {
+            "type": "string",
+            "description": "Message describing the result",
+            "example": "You earned 5 gold!"
+          }
+        },
+        "description": "Response object for click action"
+      }
+    }
+  }
+}
