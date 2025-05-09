@@ -3,6 +3,11 @@
   "info": {
     "title": "Idle Game API",
     "description": "API for the Idle Game Backend",
+    "contact": {
+      "name": "Ambient Digital",
+      "url": "https://ambient.digital",
+      "email": "info@ambient.digital"
+    },
     "license": {
       "name": "MIT License",
       "url": "https://opensource.org/licenses/MIT"
@@ -13,12 +18,7 @@
     "description": "Idle Game Documentation",
     "url": "https://ambient.digital/docs"
   },
-  "servers": [
-    {
-      "url": "https://52d8-78-35-35-30.ngrok-free.app/",
-      "description": "Default Server URL"
-    }
-  ],
+  "servers": [{ "url": "/", "description": "Default Server URL" }],
   "tags": [
     { "name": "Game", "description": "Game operations API" },
     { "name": "Player", "description": "Player management API" }
@@ -59,16 +59,16 @@
           "required": true
         },
         "responses": {
-          "400": {
-            "description": "Invalid request, such as duplicate player name",
+          "201": {
+            "description": "Player created successfully",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/PlayerResponse" }
               }
             }
           },
-          "201": {
-            "description": "Player created successfully",
+          "400": {
+            "description": "Invalid request, such as duplicate player name",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/PlayerResponse" }
@@ -215,9 +215,15 @@
   "components": {
     "schemas": {
       "CreatePlayerRequest": {
-        "required": ["name"],
+        "required": ["id", "name"],
         "type": "object",
         "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Unique player ID",
+            "format": "int64",
+            "example": 1
+          },
           "name": {
             "type": "string",
             "description": "Player name",
@@ -252,6 +258,7 @@
           "attackValue",
           "clickRate",
           "currentEnemyHealth",
+          "currentEnemyMaxHealth",
           "gold",
           "id",
           "name"
@@ -290,6 +297,12 @@
           "currentEnemyHealth": {
             "type": "integer",
             "description": "Current Enemy health",
+            "format": "int32",
+            "example": 100
+          },
+          "currentEnemyMaxHealth": {
+            "type": "integer",
+            "description": "Current Enemy Max Health",
             "format": "int32",
             "example": 100
           }

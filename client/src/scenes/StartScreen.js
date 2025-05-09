@@ -1,3 +1,5 @@
+import { API_URL } from '../config';
+
 export default class StartScreen extends Phaser.Scene {
     constructor() {
         super({ key: 'StartScreen' });
@@ -9,6 +11,30 @@ export default class StartScreen extends Phaser.Scene {
     }
 
     create() {
+        // Check if we already have player data in localStorage
+        const playerData = localStorage.getItem('playerData');
+        
+        if (playerData) {
+            try {
+                // Parse the player data
+                const parsedPlayerData = JSON.parse(playerData);
+                console.log('Found existing player data:', parsedPlayerData);
+                
+                // If we have a valid player ID, start the game immediately
+                if (parsedPlayerData && parsedPlayerData.id) {
+                    this.scene.start('BattleScene', { 
+                        difficulty: 'EASY',
+                        playerId: parsedPlayerData.id
+                    });
+                    return; // Exit early since we're starting the game
+                }
+            } catch (error) {
+                console.error('Error parsing player data:', error);
+                // Continue with normal flow if there's an error
+            }
+        }
+        
+        // If we don't have valid player data, continue with the normal signup flow
         // Add title text
         this.add.text(400, 150, 'Ambient Idle Game', {
             fontSize: '48px',
@@ -77,7 +103,7 @@ export default class StartScreen extends Phaser.Scene {
                 
                 try {
                     // Create player using API
-                    const apiUrl = 'https://52d8-78-35-35-30.ngrok-free.app/api/players';
+                    const apiUrl = `${API_URL}/players`;
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
@@ -127,6 +153,9 @@ export default class StartScreen extends Phaser.Scene {
                 });
             }
         });
+
+        // Add the button to the DOM
+        const buttonElement = this.add.dom(400, 350, startButton);
 
         // Handle enter key
         nameInput.addEventListener('keyup', (event) => {
