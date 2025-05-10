@@ -41,4 +41,8 @@ class Game(
     fun getPlayers(): List<Player> {
         return activePlayers.values.toList()
     }
+
+    fun isPlayerLoggedIn(playerId: Long): Boolean {
+        return activePlayers.containsKey(playerId)
+    }
 }

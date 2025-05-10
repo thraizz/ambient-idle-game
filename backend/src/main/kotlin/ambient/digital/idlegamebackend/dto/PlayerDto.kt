@@ -42,4 +42,13 @@ data class PlayerResponse(
 
     @Schema(description = "Current Enemy Max Health", example = "100")
     val currentEnemyMaxHealth: Int = 100,
+
+    @Schema(description = "Level", example = "1")
+    val level: Int,
+
+    @Schema(description = "How many enemies the player has defeated", example = "34")
+    val killCount: Int,
+
+    @Schema(description = "the upgrades the player has")
+    val upgrades: List<UpgradeResponse>
 )

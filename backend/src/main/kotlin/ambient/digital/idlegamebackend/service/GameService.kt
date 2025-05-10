@@ -25,16 +25,18 @@ class GameService(private val playerService: PlayerService) {
         game.getPlayers().forEach { player -> playerService.savePlayer(player) }
     }
 
-    fun getGame(): Game {
-        return game
-    }
-
     @Transactional
     fun playerLogin(playerId: Long): Int {
+        if(game.isPlayerLoggedIn(playerId)) {
+            return 0
+        }
+
         val player = playerService.getPlayerById(playerId)
         // Calculate offline progress when player logs in
         val offlineGold = game.calculateOfflineProgress(player)
         game.addPlayer(player)
+        player.addGold(offlineGold)
+        playerService.savePlayer(player)
         return offlineGold
     }
 

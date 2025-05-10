@@ -2,7 +2,9 @@ package ambient.digital.idlegamebackend.controller
 
 import ambient.digital.idlegamebackend.dto.CreatePlayerRequest
 import ambient.digital.idlegamebackend.dto.PlayerResponse
+import ambient.digital.idlegamebackend.dto.UpgradeResponse
 import ambient.digital.idlegamebackend.model.Player
+import ambient.digital.idlegamebackend.model.Upgrade
 import ambient.digital.idlegamebackend.service.PlayerService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -113,13 +115,24 @@ class PlayerController(private val playerService: PlayerService) {
         }
     }
 
+    private fun Upgrade.toUpgradeResponse() = UpgradeResponse(
+        id = id,
+        name = name,
+        cost = cost,
+        description = description,
+        enabled = enabled
+    )
+
     private fun Player.toPlayerResponse() = PlayerResponse(
         id = id,
         name = name,
         gold = gold,
-        clickRate = clickRate,
-        attackValue = attackValue,
+        clickRate = clickRateWithUpgrades,
+        attackValue = attackWithUpgrades,
         currentEnemyHealth = currentEnemyHealth,
-        currentEnemyMaxHealth = currentEnemyMaxHealth
+        currentEnemyMaxHealth = currentEnemyMaxHealth,
+        level = level,
+        killCount = killCount,
+        upgrades = playerUpgrades.map { it.upgrade.toUpgradeResponse() }
     )
 }
