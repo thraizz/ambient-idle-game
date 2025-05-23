@@ -3,23 +3,20 @@
   "info": {
     "title": "Idle Game API",
     "description": "API for the Idle Game Backend",
-    "contact": {
-      "name": "Ambient Digital",
-      "url": "https://ambient.digital",
-      "email": "info@ambient.digital"
-    },
     "license": {
       "name": "MIT License",
       "url": "https://opensource.org/licenses/MIT"
     },
     "version": "v1.0"
   },
-  "externalDocs": {
-    "description": "Idle Game Documentation",
-    "url": "https://ambient.digital/docs"
-  },
-  "servers": [{ "url": "/", "description": "Default Server URL" }],
+  "servers": [
+    {
+      "url": "https://52d8-78-35-35-30.ngrok-free.app",
+      "description": "Toms ngrok"
+    }
+  ],
   "tags": [
+    { "name": "Upgrade", "description": "Upgrade management API" },
     { "name": "Game", "description": "Game operations API" },
     { "name": "Player", "description": "Player management API" }
   ],
@@ -59,16 +56,16 @@
           "required": true
         },
         "responses": {
-          "201": {
-            "description": "Player created successfully",
+          "400": {
+            "description": "Invalid request, such as duplicate player name",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/PlayerResponse" }
               }
             }
           },
-          "400": {
-            "description": "Invalid request, such as duplicate player name",
+          "201": {
+            "description": "Player created successfully",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/PlayerResponse" }
@@ -146,6 +143,62 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ClickResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/upgrades": {
+      "get": {
+        "tags": ["Upgrade"],
+        "summary": "Get all upgrades",
+        "description": "Retrieve a list of all available upgrades in the game",
+        "operationId": "getAllUpgrades",
+        "responses": {
+          "200": {
+            "description": "Upgrades found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/UpgradeResponse" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/upgrades/{id}": {
+      "get": {
+        "tags": ["Upgrade"],
+        "summary": "Get upgrade by ID",
+        "description": "Retrieve a specific upgrade by its ID",
+        "operationId": "getUpgradeById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the upgrade to retrieve",
+            "required": true,
+            "schema": { "type": "integer", "format": "int64" }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Upgrade not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UpgradeResponse" }
+              }
+            }
+          },
+          "200": {
+            "description": "Upgrade found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UpgradeResponse" }
               }
             }
           }
@@ -349,6 +402,40 @@
           }
         },
         "description": "Response object for click action"
+      },
+      "UpgradeResponse": {
+        "required": ["cost", "description", "enabled", "id", "name"],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Unique identifier of the upgrade",
+            "format": "int64",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the upgrade",
+            "example": "Double Damage"
+          },
+          "cost": {
+            "type": "integer",
+            "description": "Cost to purchase the upgrade",
+            "format": "int32",
+            "example": 100
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the upgrade's effect",
+            "example": "Doubles your attack value"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the upgrade is enabled for purchase",
+            "example": true
+          }
+        },
+        "description": "Response containing upgrade information"
       }
     }
   }

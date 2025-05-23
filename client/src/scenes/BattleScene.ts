@@ -34,6 +34,9 @@ export default class BattleScene extends Phaser.Scene {
   private isPaused: boolean;
   private playerId: string | null;
   private attackInProgress: boolean;
+  private isShopOpen: boolean;
+  private level: number;
+  private killCount: number;
 
   // Game objects
   private enemy: Phaser.GameObjects.Sprite;
@@ -51,12 +54,16 @@ export default class BattleScene extends Phaser.Scene {
   private autoAttackLabel: Phaser.GameObjects.Text;
   private damageLabel: Phaser.GameObjects.Text;
   private clickDamageLabel: Phaser.GameObjects.Text;
-  private enemiesDefeatedText: Phaser.GameObjects.Text;
+  private shopIcon: Phaser.GameObjects.Text;
+  private shopMenu: Phaser.GameObjects.Container;
+  private upgradeItems: any[];
 
   // UI elements for stats display
   private attackSpeedText: Phaser.GameObjects.Text;
   private damageText: Phaser.GameObjects.Text;
   private clickDamageText: Phaser.GameObjects.Text;
+  private levelText: Phaser.GameObjects.Text;
+  private killCountText: Phaser.GameObjects.Text;
 
   // Upgrade buttons
   private speedUpgradeButton: Phaser.GameObjects.Text;
@@ -84,6 +91,10 @@ export default class BattleScene extends Phaser.Scene {
     this.playerId = null;
     this.playerDamage = 15;
     this.attackInProgress = false;
+    this.isShopOpen = false;
+    this.upgradeItems = [];
+    this.level = 1;
+    this.killCount = 0;
   }
 
   init(data: BattleSceneData): void {
@@ -151,6 +162,8 @@ export default class BattleScene extends Phaser.Scene {
     this.playerDamage = playerData.attackValue || 15;
     this.attackSpeed = playerData.clickRate || 1;
     this.gold = playerData.gold || 0;
+    this.level = playerData.level || 1;
+    this.killCount = playerData.killCount || 0;
 
     // Initialize enemy health
     if (playerData.currentEnemyHealth !== undefined) {
@@ -307,8 +320,11 @@ export default class BattleScene extends Phaser.Scene {
     // Create UI elements
     this.createUI();
 
-    // Create upgrade shop
-    this.createUpgradeShop();
+    // Create shop icon instead of direct upgrade menu
+    this.createShopIcon();
+
+    // Fetch upgrades from API
+    this.fetchUpgrades();
 
     // Set up automatic attacks
     this.setupAutomaticAttacks();
@@ -344,6 +360,10 @@ export default class BattleScene extends Phaser.Scene {
     // Set depth to ensure it's in front of the island
     this.player.setDepth(1);
 
+    // Use attackSpeed for animation frameRate
+    const idleFrameRate = Math.max(4, Math.round(this.attackSpeed * 4));
+    const attackFrameRate = Math.max(6, Math.round(this.attackSpeed * 6));
+
     // Create player idle animation
     this.anims.create({
       key: "hero-idle",
@@ -351,7 +371,7 @@ export default class BattleScene extends Phaser.Scene {
         start: 0,
         end: 3,
       }),
-      frameRate: 6,
+      frameRate: idleFrameRate,
       repeat: -1,
     });
 
@@ -362,7 +382,7 @@ export default class BattleScene extends Phaser.Scene {
         start: 0,
         end: 3,
       }),
-      frameRate: 12,
+      frameRate: attackFrameRate,
       repeat: 0,
     });
 
@@ -451,7 +471,7 @@ export default class BattleScene extends Phaser.Scene {
     const textPanelHeight = 170;
     // Add stats panel in the top left
     const statsPanel = this.add
-      .rectangle(120, textPanelHeight, 200, 140, 0x000000, 0.7)
+      .rectangle(120, textPanelHeight, 200, 170, 0x000000, 0.7)
       .setOrigin(0.5);
     statsPanel.setDepth(10);
 
@@ -464,6 +484,22 @@ export default class BattleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     statsTitle.setDepth(10);
+
+    // Level
+    const levelLabel = this.add.text(40, textPanelHeight - 45, "Level:", {
+      fontSize: "16px",
+      fontFamily: "Arial",
+      color: "#ffffff",
+    });
+    levelLabel.setDepth(10);
+    this.levelText = this.add
+      .text(200, textPanelHeight - 45, `${this.level}`, {
+        fontSize: "16px",
+        fontFamily: "Arial",
+        color: "#ffffff",
+      })
+      .setOrigin(1, 0);
+    this.levelText.setDepth(10);
 
     // Attack speed stat
     const attackSpeedLabel = this.add.text(
@@ -521,108 +557,317 @@ export default class BattleScene extends Phaser.Scene {
       .setOrigin(1, 0);
     this.clickDamageText.setDepth(10);
 
-    // Enemies defeated
-    const enemiesDefeatedLabel = this.add.text(40, 230, "Enemies Defeated:", {
+    // Kill count
+    const killCountLabel = this.add.text(40, 215, "Monsters Killed:", {
       fontSize: "16px",
       fontFamily: "Arial",
       color: "#ffffff",
     });
-    enemiesDefeatedLabel.setDepth(10);
-
-    this.enemiesDefeatedText = this.add
-      .text(200, 230, `${this.defeatedEnemies}`, {
+    killCountLabel.setDepth(10);
+    this.killCountText = this.add
+      .text(200, 215, `${this.killCount}`, {
         fontSize: "16px",
         fontFamily: "Arial",
         color: "#ffffff",
       })
       .setOrigin(1, 0);
-    this.enemiesDefeatedText.setDepth(10);
+    this.killCountText.setDepth(10);
   }
 
-  createUpgradeShop(): void {
-    // Upgrade panel in the bottom section
-    this.add.rectangle(400, 520, 700, 120, 0x000000, 0.7).setOrigin(0.5);
-
-    // Shop title
-    this.add
-      .text(400, 470, "UPGRADES", {
+  createShopIcon(): void {
+    // Create a shop button using text with emoji since we don't have an icon image
+    this.shopIcon = this.add.text(700, 550, "🛒", {
+      fontSize: "32px",
+      fontFamily: "Arial",
+      backgroundColor: "#4a6fa5",
+      padding: { x: 10, y: 5 },
+      color: "#ffffff"
+    });
+    
+    this.shopIcon.setInteractive();
+    this.shopIcon.setDepth(10);
+    this.shopIcon.on("pointerdown", () => {
+      this.toggleShop();
+    });
+    
+    // Create a shop menu container (initially hidden)
+    this.shopMenu = this.add.container(400, 300);
+    this.shopMenu.setDepth(20);
+    this.shopMenu.setVisible(false);
+  }
+  
+  async fetchUpgrades(): Promise<void> {
+    try {
+      const apiUrl = `${API_URL}/upgrades`;
+      const response = await fetch(apiUrl);
+      
+      if (response.ok) {
+        this.upgradeItems = await response.json();
+        console.log("Fetched upgrades:", this.upgradeItems);
+      } else {
+        console.error("Failed to fetch upgrades:", await response.text());
+        // Fallback to static upgrades if API fails
+        this.upgradeItems = [
+          {
+            id: 1,
+            name: "Speed Boost",
+            cost: this.getUpgradeCost("speed"),
+            description: "Increase attack speed by 0.1",
+            enabled: true
+          },
+          {
+            id: 2,
+            name: "Power Up",
+            cost: this.getUpgradeCost("damage"),
+            description: "Increase damage by 5",
+            enabled: true
+          },
+          {
+            id: 3,
+            name: "Click Master",
+            cost: this.getUpgradeCost("click"),
+            description: "Increase click damage by 1",
+            enabled: true
+          }
+        ];
+      }
+    } catch (error) {
+      console.error("Error fetching upgrades:", error);
+      // Fallback to static upgrades if API fails
+      this.upgradeItems = [
+        {
+          id: 1,
+          name: "Speed Boost",
+          cost: this.getUpgradeCost("speed"),
+          description: "Increase attack speed by 0.1",
+          enabled: true
+        },
+        {
+          id: 2,
+          name: "Power Up",
+          cost: this.getUpgradeCost("damage"),
+          description: "Increase damage by 5",
+          enabled: true
+        },
+        {
+          id: 3,
+          name: "Click Master",
+          cost: this.getUpgradeCost("click"),
+          description: "Increase click damage by 1",
+          enabled: true
+        }
+      ];
+    }
+  }
+  
+  toggleShop(): void {
+    this.isShopOpen = !this.isShopOpen;
+    
+    if (this.isShopOpen) {
+      this.openShop();
+    } else {
+      this.closeShop();
+    }
+  }
+  
+  openShop(): void {
+    // Clear existing menu content
+    this.shopMenu.removeAll(true);
+    
+    // Create menu background
+    const menuBg = this.add.rectangle(0, 0, 600, 400, 0x000000, 0.9);
+    menuBg.setOrigin(0.5);
+    this.shopMenu.add(menuBg);
+    
+    // Add title
+    const title = this.add.text(0, -160, "SHOP", {
+      fontSize: "32px",
+      fontFamily: "Arial",
+      color: "#ffffff",
+    });
+    title.setOrigin(0.5);
+    this.shopMenu.add(title);
+    
+    // Add close button
+    const closeButton = this.add.text(260, -160, "X", {
+      fontSize: "24px",
+      fontFamily: "Arial",
+      color: "#ffffff",
+      backgroundColor: "#aa0000",
+      padding: { x: 10, y: 5 },
+    });
+    closeButton.setOrigin(0.5);
+    closeButton.setInteractive();
+    closeButton.on("pointerdown", () => {
+      this.toggleShop();
+    });
+    this.shopMenu.add(closeButton);
+    
+    // Add upgrade items
+    if (this.upgradeItems.length > 0) {
+      // Create scrollable area for upgrades
+      let yOffset = -100;
+      const itemHeight = 80;
+      
+      this.upgradeItems.forEach((upgrade, index) => {
+        // Create item container
+        const itemBg = this.add.rectangle(0, yOffset, 500, itemHeight, 0x333333, 0.8);
+        itemBg.setOrigin(0.5);
+        this.shopMenu.add(itemBg);
+        
+        // Add upgrade name
+        const name = this.add.text(-230, yOffset - 20, upgrade.name, {
+          fontSize: "20px",
+          fontFamily: "Arial",
+          color: "#ffffff",
+        });
+        name.setOrigin(0, 0.5);
+        this.shopMenu.add(name);
+        
+        // Add upgrade description
+        const description = this.add.text(-230, yOffset + 10, upgrade.description, {
+          fontSize: "16px",
+          fontFamily: "Arial",
+          color: "#aaaaaa",
+        });
+        description.setOrigin(0, 0.5);
+        this.shopMenu.add(description);
+        
+        // Add cost
+        const cost = this.add.text(200, yOffset - 20, `Cost: ${upgrade.cost} gold`, {
+          fontSize: "16px",
+          fontFamily: "Arial",
+          color: "#ffdd00",
+        });
+        cost.setOrigin(0.5);
+        this.shopMenu.add(cost);
+        
+        // Add buy button if enabled
+        if (upgrade.enabled) {
+          const buyButton = this.add.text(200, yOffset + 10, "BUY", {
+            fontSize: "16px",
+            fontFamily: "Arial",
+            color: "#ffffff",
+            backgroundColor: this.gold >= upgrade.cost ? "#4aa54a" : "#666666",
+            padding: { x: 15, y: 5 },
+          });
+          buyButton.setOrigin(0.5);
+          
+          if (this.gold >= upgrade.cost) {
+            buyButton.setInteractive();
+            buyButton.on("pointerdown", () => {
+              this.purchaseUpgrade(upgrade);
+              // Update button state after purchase
+              if (this.gold < upgrade.cost) {
+                buyButton.setBackgroundColor("#666666");
+                buyButton.disableInteractive();
+              }
+            });
+          }
+          
+          this.shopMenu.add(buyButton);
+        } else {
+          const unavailable = this.add.text(200, yOffset + 10, "UNAVAILABLE", {
+            fontSize: "16px",
+            fontFamily: "Arial",
+            color: "#ffffff",
+            backgroundColor: "#666666",
+            padding: { x: 15, y: 5 },
+          });
+          unavailable.setOrigin(0.5);
+          this.shopMenu.add(unavailable);
+        }
+        
+        yOffset += itemHeight + 10;
+      });
+    } else {
+      // Show loading or no items message
+      const noItems = this.add.text(0, 0, "No upgrades available", {
         fontSize: "20px",
         fontFamily: "Arial",
         color: "#ffffff",
-      })
-      .setOrigin(0.5);
-
-    // Attack Speed Upgrade
-    const speedUpgradeButton = this.add
-      .text(
-        150,
-        520,
-        `Speed +0.1\nCost: ${this.getUpgradeCost("speed")} gold`,
-        {
-          fontSize: "16px",
-          fontFamily: "Arial",
-          color: "#ffffff",
-          backgroundColor: "#4a6fa5",
-          padding: { x: 10, y: 5 },
-          align: "center",
-        }
-      )
-      .setOrigin(0.5)
-      .setInteractive();
-
-    speedUpgradeButton.on("pointerdown", () => {
-      this.upgradeAttackSpeed();
-    });
-
-    // Damage Upgrade
-    const damageUpgradeButton = this.add
-      .text(
-        400,
-        520,
-        `Damage +5\nCost: ${this.getUpgradeCost("damage")} gold`,
-        {
-          fontSize: "16px",
-          fontFamily: "Arial",
-          color: "#ffffff",
-          backgroundColor: "#a54a4a",
-          padding: { x: 10, y: 5 },
-          align: "center",
-        }
-      )
-      .setOrigin(0.5)
-      .setInteractive();
-
-    damageUpgradeButton.on("pointerdown", () => {
-      this.upgradeDamage();
-    });
-
-    // Click Damage Upgrade
-    const clickUpgradeButton = this.add
-      .text(
-        650,
-        520,
-        `Click Dmg +1\nCost: ${this.getUpgradeCost("click")} gold`,
-        {
-          fontSize: "16px",
-          fontFamily: "Arial",
-          color: "#ffffff",
-          backgroundColor: "#4aa54a",
-          padding: { x: 10, y: 5 },
-          align: "center",
-        }
-      )
-      .setOrigin(0.5)
-      .setInteractive();
-
-    clickUpgradeButton.on("pointerdown", () => {
-      this.upgradeClickDamage();
-    });
-
-    // Store buttons for updating their text
-    this.speedUpgradeButton = speedUpgradeButton;
-    this.damageUpgradeButton = damageUpgradeButton;
-    this.clickUpgradeButton = clickUpgradeButton;
+      });
+      noItems.setOrigin(0.5);
+      this.shopMenu.add(noItems);
+    }
+    
+    // Show the menu
+    this.shopMenu.setVisible(true);
   }
+  
+  closeShop(): void {
+    this.shopMenu.setVisible(false);
+  }
+  
+  purchaseUpgrade(upgrade: any): void {
+    // Handle different upgrade types
+    if (upgrade.cost > this.gold) {
+      return; // Not enough gold
+    }
+    
+    // Deduct gold
+    this.gold -= upgrade.cost;
+    this.updateGoldDisplay();
+    
+    // Apply the upgrade effect based on upgrade.id or upgrade.name
+    switch (upgrade.id) {
+      case 1: // Speed Boost
+        this.attackSpeed += 0.1;
+        this.setupAutomaticAttacks(); // Reset attack timer with new speed
+        break;
+      case 2: // Power Up
+        this.playerDamage += 5;
+        break;
+      case 3: // Click Master
+        this.damagePerClick += 1;
+        break;
+      default:
+        // For dynamic upgrades, check name for keywords
+        if (upgrade.name.toLowerCase().includes("speed")) {
+          this.attackSpeed += 0.1;
+          this.setupAutomaticAttacks();
+        } else if (upgrade.name.toLowerCase().includes("damage") || 
+                 upgrade.name.toLowerCase().includes("power")) {
+          this.playerDamage += 5;
+        } else if (upgrade.name.toLowerCase().includes("click")) {
+          this.damagePerClick += 1;
+        }
+        break;
+    }
+    
+    // Update stats display
+    this.updateStatsDisplay();
+    
+    // Refresh shop with updated prices if needed
+    this.refreshUpgrades();
+  }
+  
+  refreshUpgrades(): void {
+    // Refresh upgrade prices for static fallback upgrades
+    if (this.upgradeItems.length > 0) {
+      const speedUpgrade = this.upgradeItems.find(u => u.id === 1);
+      if (speedUpgrade) {
+        speedUpgrade.cost = this.getUpgradeCost("speed");
+      }
+      
+      const damageUpgrade = this.upgradeItems.find(u => u.id === 2);
+      if (damageUpgrade) {
+        damageUpgrade.cost = this.getUpgradeCost("damage");
+      }
+      
+      const clickUpgrade = this.upgradeItems.find(u => u.id === 3);
+      if (clickUpgrade) {
+        clickUpgrade.cost = this.getUpgradeCost("click");
+      }
+    }
+    
+    // Reopen shop to refresh display
+    if (this.isShopOpen) {
+      this.openShop();
+    }
+  }
+  
+  // Keep the getUpgradeCost method for fallback pricing
   getUpgradeCost(type: string): number {
     switch (type) {
       case "speed":
@@ -635,49 +880,6 @@ export default class BattleScene extends Phaser.Scene {
         return 100;
     }
   }
-  upgradeAttackSpeed(): void {
-    const cost = this.getUpgradeCost("speed");
-    if (this.gold >= cost) {
-      this.gold -= cost;
-      this.attackSpeed += 0.1;
-      this.updateGoldDisplay();
-      this.updateStatsDisplay();
-      this.setupAutomaticAttacks(); // Reset the attack timer with new speed
-
-      // Update button text
-      this.speedUpgradeButton.setText(
-        `Speed +0.1\nCost: ${this.getUpgradeCost("speed")} gold`
-      );
-    }
-  }
-  upgradeDamage(): void {
-    const cost = this.getUpgradeCost("damage");
-    if (this.gold >= cost) {
-      this.gold -= cost;
-      this.playerDamage += 5;
-      this.updateGoldDisplay();
-      this.updateStatsDisplay();
-
-      // Update button text
-      this.damageUpgradeButton.setText(
-        `Damage +5\nCost: ${this.getUpgradeCost("damage")} gold`
-      );
-    }
-  }
-  upgradeClickDamage(): void {
-    const cost = this.getUpgradeCost("click");
-    if (this.gold >= cost) {
-      this.gold -= cost;
-      this.damagePerClick += 1;
-      this.updateGoldDisplay();
-      this.updateStatsDisplay();
-
-      // Update button text
-      this.clickUpgradeButton.setText(
-        `Click Dmg +1\nCost: ${this.getUpgradeCost("click")} gold`
-      );
-    }
-  }
   updateGoldDisplay(): void {
     this.goldText.setText(`Gold: ${this.gold}`);
   }
@@ -685,7 +887,8 @@ export default class BattleScene extends Phaser.Scene {
     this.attackSpeedText.setText(`${this.attackSpeed.toFixed(1)}/s`);
     this.damageText.setText(`${this.playerDamage}`);
     this.clickDamageText.setText(`+${this.damagePerClick}`);
-    this.enemiesDefeatedText.setText(`${this.defeatedEnemies}`);
+    if (this.levelText) this.levelText.setText(`${this.level}`);
+    if (this.killCountText) this.killCountText.setText(`${this.killCount}`);
   }
   setupAutomaticAttacks(): void {
     // Clear existing timer if it exists
@@ -1068,8 +1271,8 @@ export default class BattleScene extends Phaser.Scene {
         this.gold = playerData.gold;
         this.attackSpeed = playerData.clickRate;
         this.playerDamage = playerData.attackValue;
-
-        // Update enemy health from server
+        this.level = playerData.level || 1;
+        this.killCount = playerData.killCount || 0;
         this.enemyConfig.hp = playerData.currentEnemyHealth;
         this.enemyConfig.maxHp = playerData.currentEnemyMaxHealth;
 
